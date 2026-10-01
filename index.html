@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plusbox Live TV</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; padding: 20px; }
+        .player-container { max-width: 800px; margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        video { width: 100%; height: auto; display: block; }
+        .token-display { margin-top: 10px; font-size: 12px; color: #888; word-break: break-all; }
+        button { margin-top: 15px; padding: 10px 20px; background: #e50914; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #b20710; }
+    </style>
+</head>
+<body>
+
+    <h1>Plusbox Live TV</h1>
+    
+    <div class="player-container">
+        <video id="videoPlayer" controls autoplay></video>
+    </div>
+
+    <div class="token-display" id="tokenText">Token load ho raha hai...</div>
+    <button onclick="loadStream()">Stream Refresh Karein</button>
+
+    <script>
+        // Aapka Vercel Token API URL
+        const TOKEN_API_URL = "https://plusbox-token.vercel.app/api/token";
+
+        // Plusbox ka base stream URL (Yahan aapko sahi channel URL daalna hoga)
+        // NOTE: Plusbox TV ka actual stream URL aapko unki API se ya network tab se lena padega.
+        // Abhi ke liye hum ek dummy URL use kar rahe hain.
+        const STREAM_BASE_URL = "https://backend.plusbox.tv/PTVSports/embed.html?token=";
+
+        async function loadStream() {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const tokenText = document.getElementById('tokenText');
+
+            try {
+                // 1. Token API se fresh token lein
+                tokenText.innerText = "Token fetch ho raha hai...";
+                const response = await fetch(TOKEN_API_URL);
+                const token = await response.text();
+
+                if (!token || token.includes("error")) {
+                    throw new Error("Token nahi mila");
+                }
+
+                tokenText.innerText = "Token: " + token;
+
+                // 2. Token ke saath stream URL banayein
+                // YAHAN DHYAN DEIN: Aapko pata hona chahiye ki Plusbox ka actual .m3u8 ya stream link kya hai.
+                // Neeche wala link sirf example hai.
+                const streamUrl = STREAM_BASE_URL + token;
+
+                // 3. Video player mein stream load karein
+                if (Hls.isSupported()) {
+                    const hls = new Hls();
+                    hls.loadSource(streamUrl);
+                    hls.attachMedia(videoPlayer);
+                    hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        videoPlayer.play();
+                    });
+                } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                    videoPlayer.src = streamUrl;
+                    videoPlayer.addEventListener('loadedmetadata', function() {
+                        videoPlayer.play();
+                    });
+                } else {
+                    videoPlayer.src = streamUrl; // Fallback for direct mp4
+                }
+
+            } catch (error) {
+                console.error(error);
+                tokenText.innerText = "Error: " + error.message;
+            }
+        }
+
+        // Page load hote hi stream load karein
+        window.onload = loadStream;
+    </script>
+    
+    <!-- HLS.js library for m3u8 streams -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</body>
+</html>
